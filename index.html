@@ -258,6 +258,40 @@
                 margin: 0 auto;
                 display: block;
             }
+
+            /* Stack publication cards vertically on mobile */
+            .img_row {
+                flex-direction: column !important;
+            }
+
+            .img_row .col.one {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 0 15px 0 !important;
+                padding: 0 !important;
+                float: none !important;
+            }
+
+            .img_row .col.two {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                float: none !important;
+            }
+
+            .img_row .col.one img {
+                max-height: 300px !important;
+                width: 100% !important;
+            }
+
+            .crossfade-container {
+                max-height: 300px !important;
+            }
+
+            .crossfade-video-container {
+                max-height: 300px !important;
+            }
         }
 
         table tr {
