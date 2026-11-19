@@ -158,7 +158,9 @@
   function fitCard() {
     const card = $('card'); if (!card) return;
     const h = Math.max(...[...card.querySelectorAll('.face')].map(f => { f.style.position = 'relative'; const v = f.scrollHeight; f.style.position = ''; return v; }));
-    card.style.minHeight = Math.max(320, h) + 'px';
+    card.style.minHeight = '';
+    const base = card.getBoundingClientRect().height;
+    card.style.minHeight = Math.max(base, h) + 'px';
   }
   function flip() {
     S.flipped = !S.flipped;
