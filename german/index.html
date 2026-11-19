@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Deutsch A1 Flashcards</title>
-<meta name="description" content="German A1 vocabulary flashcards with English and Hebrew translations, pronunciation and example sentences.">
+<title>German flashcards</title>
+<meta name="description" content="German A1, A2 and B1 vocabulary flashcards with English and Hebrew translations, pronunciation and example sentences.">
 <meta name="theme-color" content="#d7dee4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161c22" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Deutsch A1">
+<meta name="apple-mobile-web-app-title" content="Deutsch">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -59,7 +59,7 @@ h1 .lvl { font-weight: 400; color: var(--desk-muted); }
 @media (hover: hover) { .home:hover { color: var(--desk-ink); } }
 
 /* toggles */
-.controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.controls { display: grid; grid-template-columns: .8fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .seg { display: flex; background: var(--desk-2); border-radius: 12px; padding: 3px; }
 .seg button { flex: 1; min-height: 40px; border: 0; background: transparent; color: var(--desk-muted);
   font-size: 15px; font-weight: 500; padding: 6px 10px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
@@ -177,7 +177,6 @@ footer { margin-top: 30px; font-size: 13px; color: var(--desk-muted); text-align
 @media (max-width: 560px) {
   h1 { font-size: 22px; } h1 .stripe { height: 22px; }
   .controls { grid-template-columns: 1fr 1fr; }
-  .controls #modeSeg { grid-column: 1 / -1; }
   .options { grid-template-columns: 1fr; }
   .fach .lbl { padding: 0 8px; font-size: 12px; }
   .face { padding: 80px 16px 42px; }
@@ -210,11 +209,14 @@ footer { margin-top: 30px; font-size: 13px; color: var(--desk-muted); text-align
 <body>
 <div class="wrap" id="app">
   <header>
-    <h1><span class="stripe"></span><span>Deutsch <span class="lvl">A1</span></span></h1>
+    <h1><span class="stripe"></span><span>Deutsch <span class="lvl" id="lvl">A1</span></span></h1>
     <a class="home" href="../">kariander1</a>
   </header>
 
   <div class="controls">
+    <div class="seg" id="levelSeg">
+      <button data-v="A1">A1</button><button data-v="A2">A2</button><button data-v="B1">B1</button>
+    </div>
     <div class="seg" id="langSeg">
       <button data-v="en">English</button><button data-v="he">עברית</button>
     </div>
@@ -250,6 +252,14 @@ footer { margin-top: 30px; font-size: 13px; color: var(--desk-muted); text-align
 <script src="examples1.js"></script>
 <script src="examples2.js"></script>
 <script src="examples3.js"></script>
+<script src="a2.js"></script>
+<script src="a2b.js"></script>
+<script src="a2c.js"></script>
+<script src="a2d.js"></script>
+<script src="b1.js"></script>
+<script src="b1b.js"></script>
+<script src="b1c.js"></script>
+<script src="b1d.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

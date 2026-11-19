@@ -5,32 +5,48 @@
     const p = raw.split('|').map(s => s.trim());
     if (p.length === 4) EX[p[0]] = { de: p[1], en: p[2], he: p[3] };
   }
+  // A1 lives in words.js; A2/B1 come from LEVEL_RAW (word | en | he | example de | en | he)
+  for (const w of WORDS) w.level = 'A1';
+  for (const c of CATEGORIES) c.level = 'A1';
+  const LEVELS = ['A1'];
+  for (const [lvl, raw] of Object.entries(window.LEVEL_RAW || {})) {
+    LEVELS.push(lvl);
+    let cat = null;
+    for (const line of raw.split('\n')) {
+      const tx = line.trim(); if (!tx) continue;
+      if (tx.startsWith('#')) { const [key, en, he] = tx.slice(1).split('|').map(x => x.trim()); cat = { key, en, he, level: lvl }; CATEGORIES.push(cat); continue; }
+      const p = tx.split('|').map(x => x.trim()); if (p.length !== 6) continue;
+      const m = p[0].match(/^(der|die|das) /);
+      WORDS.push({ id: lvl + ':' + cat.key + ':' + p[0], de: p[0], en: p[1], he: p[2], cat: cat.key, level: lvl,
+        article: m ? m[1] : null, ex: { de: p[3], en: p[4], he: p[5] } });
+    }
+  }
   const CAT = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
 
   // ---------- UI strings ----------
   const T = {
     en: {
-      title: 'Deutsch A1 Flashcards', dirDe: 'DE → EN', dirTr: 'EN → DE', cards: 'Cards', quiz: 'Quiz',
+      title: 'German flashcards', dirDe: 'DE → EN', dirTr: 'EN → DE', cards: 'Cards', quiz: 'Quiz',
       topics: 'Topics', all: 'Select all', none: 'Clear', reset: 'Reset progress',
-      resetQ: 'Reset all progress?', again: 'Again', got: 'Got it', tap: 'Tap to flip',
+      resetQ: 'Reset progress for this level?', again: 'Again', got: 'Got it', tap: 'Tap to flip',
       mastered: (a, b) => `${a} / ${b} mastered`, ofTopics: (a, b) => `${a} of ${b}`,
       doneT: 'All done here! 🎉', doneS: 'Every word in these topics is mastered.',
       review: 'Review them anyway', pick: 'Pick at least one topic.', next: 'Next',
       correct: 'Correct', wrong: 'Wrong', streak: 'Streak',
       keys: 'Space = flip · → = got it · ← = again · S = speak · 1–4 in quiz',
-      credit: 'Based on the Goethe-Zertifikat A1 word list.',
+      credit: 'Based on the Goethe-Zertifikat word lists.',
       boxes: ['New', 'Seen once', 'Seen twice', 'Learned'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     },
     he: {
-      title: 'כרטיסיות גרמנית A1', dirDe: 'מגרמנית', dirTr: 'לגרמנית', cards: 'כרטיסיות', quiz: 'חידון',
+      title: 'כרטיסיות גרמנית', dirDe: 'מגרמנית', dirTr: 'לגרמנית', cards: 'כרטיסיות', quiz: 'חידון',
       topics: 'נושאים', all: 'בחר הכול', none: 'נקה', reset: 'איפוס התקדמות',
-      resetQ: 'לאפס את כל ההתקדמות?', again: 'שוב', got: 'ידעתי', tap: 'הקש כדי להפוך',
+      resetQ: 'לאפס את ההתקדמות ברמה הזאת?', again: 'שוב', got: 'ידעתי', tap: 'הקש כדי להפוך',
       mastered: (a, b) => `${a} / ${b} נלמדו`, ofTopics: (a, b) => `${a} מתוך ${b}`,
       doneT: 'סיימת! 🎉', doneS: 'כל המילים בנושאים האלה נלמדו.',
       review: 'לחזור עליהן בכל זאת', pick: 'בחר לפחות נושא אחד.', next: 'הבא',
       correct: 'נכון', wrong: 'טעות', streak: 'רצף',
       keys: 'רווח = הפוך · חץ ימינה = ידעתי · חץ שמאלה = שוב · S = השמע · 1–4 בחידון',
-      credit: 'מבוסס על רשימת המילים של Goethe-Zertifikat A1.',
+      credit: 'מבוסס על רשימות המילים של Goethe-Zertifikat.',
       boxes: ['חדש', 'פעם אחת', 'פעמיים', 'נלמד'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     }
   };
@@ -44,7 +60,10 @@
     lang: store.get('lang', 'en'),
     dir: store.get('dir', 'de'),
     mode: store.get('mode', 'cards'),
-    cats: new Set(store.get('cats', CATEGORIES.map(c => c.key))),
+    level: store.get('level', 'A1'),
+    off: new Set(store.get('off', null) || (() => {               // topics switched off (migrates old 'cats' list)
+      const on = store.get('cats', null); return on ? CATEGORIES.filter(c => c.level === 'A1' && !on.includes(c.key)).map(c => c.key) : [];
+    })()),
     box: store.get('box', {}),           // word id -> level (0..); >=3 = mastered
     reviewAll: false,
     deck: [], cur: null, flipped: false,
@@ -53,7 +72,7 @@
   const MASTER = 3;
   const t = k => T[S.lang][k];
   const tr = w => w[S.lang];
-  const save = () => { store.set('lang', S.lang); store.set('dir', S.dir); store.set('mode', S.mode); store.set('cats', [...S.cats]); store.set('box', S.box); };
+  const save = () => { store.set('lang', S.lang); store.set('dir', S.dir); store.set('mode', S.mode); store.set('level', S.level); store.set('off', [...S.off]); store.set('box', S.box); };
 
   // ---------- speech ----------
   const canSpeak = 'speechSynthesis' in window;
@@ -66,7 +85,7 @@
   function speak(text) {
     if (!canSpeak) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/\(Pl\.\)/, '').trim());
+    const u = new SpeechSynthesisUtterance(text.replace(/\s*\([^)]*\)/g, '').trim());
     u.lang = 'de-DE'; u.rate = 0.9;
     if (deVoice) u.voice = deVoice;
     speechSynthesis.speak(u);
@@ -78,7 +97,10 @@
   const $ = id => document.getElementById(id);
   function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  const pool = () => WORDS.filter(w => S.cats.has(w.cat));
+  if (!LEVELS.includes(S.level)) S.level = 'A1';
+  const levelCats = () => CATEGORIES.filter(c => c.level === S.level);
+  const onCats = () => levelCats().filter(c => !S.off.has(c.key));
+  const pool = () => WORDS.filter(w => w.level === S.level && !S.off.has(w.cat));
   const isMastered = w => (S.box[w.id] || 0) >= MASTER;
   const trSpan = text => `<span ${S.lang === 'he' ? 'dir="rtl" lang="he"' : ''}>${esc(text)}</span>`;
   function deHtml(w) {
@@ -89,7 +111,7 @@
   function tabHtml(w, hide) {
     if (hide) return `<span class="tab blank">?</span>`;
     if (w.article) return `<span class="tab ${w.article}">${w.article}</span>`;
-    const lbl = w.cat === 'verbs' ? t('verb') : w.cat === 'adjectives' ? t('adj') : t('wort');
+    const lbl = /verbs$/.test(w.cat) ? t('verb') : /adjectives|describe/.test(w.cat) ? t('adj') : t('wort');
     return `<span class="tab misc" lang="de">${lbl}</span>`;
   }
   const ICO_AGAIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
@@ -97,7 +119,7 @@
   const catName = k => CAT[k][S.lang];
 
   function exampleHtml(w) {
-    const e = EX[w.de];
+    const e = w.ex || EX[w.de];
     if (!e) return '';
     return `<div class="example" dir="ltr"><div class="de" lang="de">${esc(e.de)} ${speakBtn(e.de, true)}</div>
       <div class="tr">${trSpan(e[S.lang])}</div></div>`;
@@ -109,14 +131,15 @@
     document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
     document.title = t('title');
     document.querySelectorAll('[data-i]').forEach(el => { el.textContent = t(el.dataset.i); });
-    for (const [id, val] of [['langSeg', S.lang], ['dirSeg', S.dir], ['modeSeg', S.mode]])
+    $('lvl').textContent = S.level;
+    for (const [id, val] of [['levelSeg', S.level], ['langSeg', S.lang], ['dirSeg', S.dir], ['modeSeg', S.mode]])
       $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === val));
-    $('chips').innerHTML = CATEGORIES.map(c => {
+    $('chips').innerHTML = levelCats().map(c => {
       const ws = WORDS.filter(w => w.cat === c.key);
       const m = ws.filter(isMastered).length;
-      return `<button class="chip ${S.cats.has(c.key) ? 'on' : ''}" data-cat="${c.key}">${esc(c[S.lang])}<small>${m}/${ws.length}</small></button>`;
+      return `<button class="chip ${S.off.has(c.key) ? '' : 'on'}" data-cat="${c.key}">${esc(c[S.lang])}<small>${m}/${ws.length}</small></button>`;
     }).join('');
-    $('catSummary').textContent = t('ofTopics')(S.cats.size, CATEGORIES.length);
+    $('catSummary').textContent = t('ofTopics')(onCats().length, levelCats().length);
     const p = pool(), counts = [0, 0, 0, 0];
     for (const w of p) counts[Math.min(S.box[w.id] || 0, MASTER)]++;
     const kasten = $('kasten');
@@ -147,7 +170,7 @@
   // ---------- cards ----------
   function renderCards() {
     const st = $('stage');
-    if (!S.cats.size) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
+    if (!onCats().length) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
     if (!S.cur) {
       st.innerHTML = `<div class="quiz-q done"><h2>${t('doneT')}</h2><p>${t('doneS')}</p><button class="btn primary" id="reviewBtn">${t('review')}</button></div>`;
       $('reviewBtn').onclick = () => { S.reviewAll = true; buildDeck(); nextWord(); render(); };
@@ -212,7 +235,7 @@
   function setupQuestion() {
     const w = S.cur; if (!w) return;
     const same = WORDS.filter(x => x.id !== w.id && x.cat === w.cat && tr(x) !== tr(w) && x.de !== w.de);
-    const others = WORDS.filter(x => x.id !== w.id && x.cat !== w.cat);
+    const others = WORDS.filter(x => x.id !== w.id && x.cat !== w.cat && x.level === w.level && tr(x) !== tr(w));
     const picks = shuffle(same.slice()).slice(0, 3);
     while (picks.length < 3) picks.push(others[Math.random() * others.length | 0]);
     S.quiz.options = shuffle([w, ...picks]);
@@ -220,7 +243,7 @@
   }
   function renderQuiz() {
     const st = $('stage');
-    if (!S.cats.size) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
+    if (!onCats().length) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
     if (!S.cur) { renderCards(); return; }
     if (!S.quiz.options.length) setupQuestion();
     const w = S.cur, q = S.quiz;
@@ -256,16 +279,17 @@
   function render() { S.mode === 'quiz' ? renderQuiz() : renderCards(); }
   function restart() { S.reviewAll = false; buildDeck(); nextWord(); S.quiz.options = []; renderChrome(); render(); }
 
+  $('levelSeg').onclick = e => { const v = e.target.dataset.v; if (v && v !== S.level) { S.level = v; save(); restart(); } };
   $('langSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.lang = v; save(); S.quiz.options = []; renderChrome(); render(); } };
   $('dirSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.dir = v; save(); S.flipped = false; S.quiz.options = []; renderChrome(); render(); } };
   $('modeSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.mode = v; save(); S.flipped = false; S.quiz.options = []; renderChrome(); render(); } };
   $('chips').onclick = e => {
     const b = e.target.closest('.chip'); if (!b) return;
-    const k = b.dataset.cat; S.cats.has(k) ? S.cats.delete(k) : S.cats.add(k); save(); restart();
+    const k = b.dataset.cat; S.off.has(k) ? S.off.delete(k) : S.off.add(k); save(); restart();
   };
-  $('allBtn').onclick = () => { S.cats = new Set(CATEGORIES.map(c => c.key)); save(); restart(); };
-  $('noneBtn').onclick = () => { S.cats.clear(); save(); restart(); };
-  $('resetBtn').onclick = () => { if (confirm(t('resetQ'))) { S.box = {}; save(); restart(); } };
+  $('allBtn').onclick = () => { levelCats().forEach(c => S.off.delete(c.key)); save(); restart(); };
+  $('noneBtn').onclick = () => { levelCats().forEach(c => S.off.add(c.key)); save(); restart(); };
+  $('resetBtn').onclick = () => { if (confirm(t('resetQ'))) { WORDS.filter(w => w.level === S.level).forEach(w => delete S.box[w.id]); save(); restart(); } };
   document.addEventListener('click', e => { const b = e.target.closest('.speak'); if (b) { e.stopPropagation(); speak(b.dataset.say); } }, true);
   window.addEventListener('resize', fitCard);
 
