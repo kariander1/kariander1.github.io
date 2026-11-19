@@ -18,7 +18,8 @@
       review: 'Review them anyway', pick: 'Pick at least one topic.', next: 'Next',
       correct: 'Correct', wrong: 'Wrong', streak: 'Streak',
       keys: 'Space = flip · → = got it · ← = again · S = speak · 1–4 in quiz',
-      credit: 'Based on the Goethe-Zertifikat A1 word list.'
+      credit: 'Based on the Goethe-Zertifikat A1 word list.',
+      boxes: ['New', 'Seen once', 'Seen twice', 'Learned'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     },
     he: {
       title: 'כרטיסיות גרמנית A1', dirDe: 'מגרמנית', dirTr: 'לגרמנית', cards: 'כרטיסיות', quiz: 'חידון',
@@ -29,7 +30,8 @@
       review: 'לחזור עליהן בכל זאת', pick: 'בחר לפחות נושא אחד.', next: 'הבא',
       correct: 'נכון', wrong: 'טעות', streak: 'רצף',
       keys: 'רווח = הפוך · חץ ימינה = ידעתי · חץ שמאלה = שוב · S = השמע · 1–4 בחידון',
-      credit: 'מבוסס על רשימת המילים של Goethe-Zertifikat A1.'
+      credit: 'מבוסס על רשימת המילים של Goethe-Zertifikat A1.',
+      boxes: ['חדש', 'פעם אחת', 'פעמיים', 'נלמד'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     }
   };
 
@@ -79,11 +81,19 @@
   const pool = () => WORDS.filter(w => S.cats.has(w.cat));
   const isMastered = w => (S.box[w.id] || 0) >= MASTER;
   const trSpan = text => `<span ${S.lang === 'he' ? 'dir="rtl" lang="he"' : ''}>${esc(text)}</span>`;
-  function deHtml(w, cls = '') {
-    const art = w.article ? `<span class="art-${w.article}">${w.article}</span> ` : '';
-    const rest = w.article ? w.de.slice(w.article.length + 1) : w.de;
-    return `<span class="${w.article ? 'art-' + w.article : ''} ${cls}">${art}${esc(rest)}</span>`;
+  function deHtml(w) {
+    if (!w.article) return `<span>${esc(w.de)}</span>`;
+    return `<span><span class="a ${w.article}">${w.article}</span> ${esc(w.de.slice(w.article.length + 1))}</span>`;
   }
+  // index-card divider tab: gender color for nouns, yellow for everything else
+  function tabHtml(w, hide) {
+    if (hide) return `<span class="tab blank">?</span>`;
+    if (w.article) return `<span class="tab ${w.article}">${w.article}</span>`;
+    const lbl = w.cat === 'verbs' ? t('verb') : w.cat === 'adjectives' ? t('adj') : t('wort');
+    return `<span class="tab misc" lang="de">${lbl}</span>`;
+  }
+  const ICO_AGAIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+  const ICO_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>';
   const catName = k => CAT[k][S.lang];
 
   function exampleHtml(w) {
@@ -107,9 +117,17 @@
       return `<button class="chip ${S.cats.has(c.key) ? 'on' : ''}" data-cat="${c.key}">${esc(c[S.lang])}<small>${m}/${ws.length}</small></button>`;
     }).join('');
     $('catSummary').textContent = t('ofTopics')(S.cats.size, CATEGORIES.length);
-    const p = pool(), m = p.filter(isMastered).length;
-    $('progText').textContent = t('mastered')(m, p.length);
-    $('progBar').style.width = p.length ? (100 * m / p.length) + '%' : '0';
+    const p = pool(), counts = [0, 0, 0, 0];
+    for (const w of p) counts[Math.min(S.box[w.id] || 0, MASTER)]++;
+    const kasten = $('kasten');
+    if (!kasten.children.length) kasten.innerHTML = counts.map((_, i) => `<div class="fach${i === 3 ? ' fin' : ''}"><div class="fill"></div><div class="lbl"><span></span><b></b></div></div>`).join('');
+    [...kasten.children].forEach((f, i) => {
+      f.querySelector('.fill').style.height = p.length ? Math.max(counts[i] ? 6 : 0, 100 * counts[i] / p.length) + '%' : '0';
+      f.querySelector('span').textContent = t('boxes')[i];
+      f.querySelector('b').textContent = counts[i];
+      f.classList.toggle('has', counts[i] > 0);
+    });
+    kasten.setAttribute('aria-label', t('mastered')(counts[3], p.length));
   }
 
   // ---------- deck ----------
@@ -129,9 +147,9 @@
   // ---------- cards ----------
   function renderCards() {
     const st = $('stage');
-    if (!S.cats.size) { st.innerHTML = `<div class="done">${t('pick')}</div>`; return; }
+    if (!S.cats.size) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
     if (!S.cur) {
-      st.innerHTML = `<div class="done"><h2>${t('doneT')}</h2><p>${t('doneS')}</p><button class="btn primary" id="reviewBtn">${t('review')}</button></div>`;
+      st.innerHTML = `<div class="quiz-q done"><h2>${t('doneT')}</h2><p>${t('doneS')}</p><button class="btn primary" id="reviewBtn">${t('review')}</button></div>`;
       $('reviewBtn').onclick = () => { S.reviewAll = true; buildDeck(); nextWord(); render(); };
       return;
     }
@@ -142,12 +160,12 @@
     const back = (S.dir === 'de' ? trSide + `<div class="sub" dir="ltr" lang="de">${deHtml(w)}</div>` : deSide + `<div class="sub">${trSpan(tr(w))}</div>`) + exampleHtml(w);
     st.innerHTML = `
       <div class="card-area"><div class="card ${S.flipped ? 'flipped' : ''}" id="card">
-        <div class="face front"><span class="cat-tag">${esc(catName(w.cat))}</span>${front}<span class="hint">${t('tap')}</span></div>
-        <div class="face back"><span class="cat-tag">${esc(catName(w.cat))}</span>${back}</div>
+        <div class="face front">${tabHtml(w, S.dir !== 'de')}<span class="topic">${esc(catName(w.cat))}</span>${front}<span class="hint">${t('tap')}</span></div>
+        <div class="face back">${tabHtml(w)}<span class="topic">${esc(catName(w.cat))}</span>${back}</div>
       </div></div>
       <div class="actions" dir="ltr">
-        <button class="btn again" id="againBtn">${t('again')}</button>
-        <button class="btn got" id="gotBtn">${t('got')}</button>
+        <button class="btn again" id="againBtn">${ICO_AGAIN}${t('again')}</button>
+        <button class="btn got" id="gotBtn">${ICO_OK}${t('got')}</button>
       </div>`;
     fitCard();
     $('card').onclick = e => { if (!e.target.closest('.speak')) flip(); };
@@ -167,11 +185,18 @@
     $('card').classList.toggle('flipped', S.flipped);
     if (S.flipped && S.dir === 'tr') speak(S.cur.de);
   }
+  let busy = false;
   function grade(ok) {
-    const w = S.cur; if (!w) return;
+    const w = S.cur; if (!w || busy) return;
     if (ok) S.box[w.id] = (S.box[w.id] || 0) + 1;
     else { S.box[w.id] = 0; S.deck.splice(Math.min(4, S.deck.length), 0, w); }
-    save(); nextWord(); renderChrome(); render();
+    save();
+    const card = $('card');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!card || reduce) { nextWord(); renderChrome(); render(); return; }
+    busy = true;
+    card.classList.add(ok ? 'out-ok' : 'out-no');
+    setTimeout(() => { busy = false; nextWord(); renderChrome(); render(); }, 260);
   }
   function bindSwipe(el) {
     let x0 = null;
@@ -195,7 +220,7 @@
   }
   function renderQuiz() {
     const st = $('stage');
-    if (!S.cats.size) { st.innerHTML = `<div class="done">${t('pick')}</div>`; return; }
+    if (!S.cats.size) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
     if (!S.cur) { renderCards(); return; }
     if (!S.quiz.options.length) setupQuestion();
     const w = S.cur, q = S.quiz;
@@ -203,7 +228,7 @@
       ? `<div class="word" lang="de" dir="ltr">${deHtml(w)} ${speakBtn(w.de)}</div>`
       : `<div class="word small">${trSpan(tr(w))}</div>`;
     st.innerHTML = `
-      <div class="quiz-q"><span class="cat-tag">${esc(catName(w.cat))}</span>${prompt}
+      <div class="quiz-q">${tabHtml(w, S.dir !== 'de' && !q.answered)}<span class="topic">${esc(catName(w.cat))}</span>${prompt}
         ${q.answered ? exampleHtml(w) : ''}</div>
       <div class="options">${q.options.map((o, i) => {
         const label = S.dir === 'de' ? trSpan(tr(o)) : `<span lang="de" dir="ltr">${deHtml(o)}</span>`;
@@ -212,7 +237,7 @@
         return `<button class="opt ${cls}" data-o="${i}" ${q.answered ? 'disabled' : ''}><span class="k">${i + 1}</span>${label}</button>`;
       }).join('')}</div>
       ${q.answered ? `<div class="actions" style="grid-template-columns:1fr"><button class="btn primary" id="nextBtn">${t('next')}</button></div>` : ''}
-      <div class="score"><span style="color:var(--good)">${t('correct')}: ${q.right}</span><span style="color:var(--bad)">${t('wrong')}: ${q.wrong}</span><span>${t('streak')}: ${q.streak}</span></div>`;
+      <div class="score"><span>${t('correct')} <b>${q.right}</b></span><span>${t('wrong')} <b>${q.wrong}</b></span><span>${t('streak')} <b>${q.streak}</b></span></div>`;
     st.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(+b.dataset.o));
     if (q.answered) $('nextBtn').onclick = nextQuestion;
   }
