@@ -66,24 +66,50 @@ h1 .lvl { font-weight: 400; color: var(--desk-muted); }
 .seg button.on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(31,41,51,.18); }
 
 /* topics */
-details.cats { margin-bottom: 14px; }
-details.cats summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center;
-  font-size: 15px; color: var(--desk-muted); padding: 6px 2px; }
-details.cats summary::-webkit-details-marker { display: none; }
-details.cats summary::after { content: ""; width: 7px; height: 7px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-2px); transition: transform .2s; }
-details.cats[open] summary::after { transform: rotate(-135deg) translateY(-1px); }
-details.cats summary b { color: var(--desk-ink); font-weight: 500; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.chip { min-height: 36px; border: 0; background: var(--desk-2); color: var(--desk-ink); font-size: 14px; padding: 6px 12px 6px 10px;
-  border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-.chip::before { content: ""; width: 10px; height: 10px; border-radius: 3px; border: 2px solid var(--desk-muted); }
-.chip.on { background: var(--paper); color: var(--ink); }
-.chip.on::before { background: var(--ink); border-color: var(--ink); }
-.chip small { color: var(--desk-muted); font-size: 12px; }
-.chip.on small { color: var(--ink-soft); }
-.chip-actions { display: flex; gap: 16px; margin-top: 10px; font-size: 14px; }
+.topics { margin: 0 -18px 14px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 18px 6px; scroll-snap-type: x proximity; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%); }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; scroll-snap-align: center; min-height: 40px; border: 0; background: var(--desk-2); color: var(--desk-ink); font-size: 15px;
+  padding: 6px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.chip.on { background: var(--ink); color: var(--paper); }
+.chip small { color: var(--desk-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chip.on small { color: color-mix(in srgb, var(--paper) 70%, transparent); }
+@media (prefers-color-scheme: dark) { .chip.on { background: var(--paper); color: var(--ink); } .chip.on small { color: var(--ink-soft); } }
+@media (min-width: 761px) { .chips { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; } }
 .linkbtn { border: 0; background: none; color: var(--desk-ink); padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--desk-muted); }
-.linkbtn.quiet { margin-inline-start: auto; color: var(--desk-muted); }
+.linkbtn.quiet { color: var(--desk-muted); }
+.foot-actions { display: flex; justify-content: center; gap: 18px; margin-top: 10px; }
+.foot-actions .linkbtn { font-size: 13px; }
+
+/* surprise card */
+.face.hili { background: linear-gradient(160deg, #ffe3ea 0%, #ffd0dc 55%, #ffc2d1 100%); color: #7a1d3a; }
+.tab.hili-tab { background: #e0476f; color: #fff; font-size: 15px; }
+.hili-word { color: #7a1d3a; position: relative; }
+.face.hili .sub { color: #a3405f; position: relative; margin-top: 8px; }
+.face.hili .speak { background: #e0476f; color: #fff; }
+.hearts { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.hearts i { position: absolute; bottom: -30px; font-style: normal; color: #e0476f; opacity: 0; animation: rise 3.2s ease-in infinite; }
+.hearts i:nth-child(odd) { color: #f28aa5; }
+.hearts i:nth-child(1) { left: 44%; font-size: 18px; animation-delay: 1.18s; animation-duration: 2.68s; }
+.hearts i:nth-child(2) { left: 71%; font-size: 17px; animation-delay: 1.10s; animation-duration: 2.69s; }
+.hearts i:nth-child(3) { left: 67%; font-size: 20px; animation-delay: 0.11s; animation-duration: 3.29s; }
+.hearts i:nth-child(4) { left: 11%; font-size: 21px; animation-delay: 0.27s; animation-duration: 3.28s; }
+.hearts i:nth-child(5) { left: 75%; font-size: 17px; animation-delay: 2.84s; animation-duration: 3.61s; }
+.hearts i:nth-child(6) { left: 77%; font-size: 15px; animation-delay: 1.73s; animation-duration: 3.23s; }
+.hearts i:nth-child(7) { left: 31%; font-size: 15px; animation-delay: 1.67s; animation-duration: 2.81s; }
+.hearts i:nth-child(8) { left: 56%; font-size: 18px; animation-delay: 1.62s; animation-duration: 3.51s; }
+.hearts i:nth-child(9) { left: 74%; font-size: 19px; animation-delay: 0.31s; animation-duration: 3.51s; }
+.hearts i:nth-child(10) { left: 27%; font-size: 25px; animation-delay: 0.29s; animation-duration: 3.74s; }
+.hearts i:nth-child(11) { left: 75%; font-size: 15px; animation-delay: 1.86s; animation-duration: 3.39s; }
+.hearts i:nth-child(12) { left: 71%; font-size: 27px; animation-delay: 2.33s; animation-duration: 3.34s; }
+.hearts i:nth-child(13) { left: 61%; font-size: 25px; animation-delay: 0.90s; animation-duration: 3.87s; }
+.hearts i:nth-child(14) { left: 92%; font-size: 21px; animation-delay: 0.25s; animation-duration: 3.08s; }
+@keyframes rise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-460px) scale(1.15); opacity: 0; } }
+.hili-card { animation: pop .45s cubic-bezier(.2,1.4,.4,1); }
+@keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .hearts i, .hili-card { animation: none; } .hearts i { opacity: .35; bottom: auto; } }
 
 /* Karteikasten progress */
 .kasten { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 26px; }
@@ -228,15 +254,7 @@ footer { margin-top: 30px; font-size: 13px; color: var(--desk-muted); text-align
     </div>
   </div>
 
-  <details class="cats" id="cats">
-    <summary><span data-i="topics"></span><b id="catSummary"></b></summary>
-    <div class="chips" id="chips"></div>
-    <div class="chip-actions">
-      <button class="linkbtn" id="allBtn" data-i="all"></button>
-      <button class="linkbtn" id="noneBtn" data-i="none"></button>
-      <button class="linkbtn quiet" id="resetBtn" data-i="reset"></button>
-    </div>
-  </details>
+  <nav class="topics" aria-label="Topics"><div class="chips" id="chips"></div></nav>
 
   <div class="kasten" id="kasten" aria-label="Progress"></div>
 
@@ -245,6 +263,7 @@ footer { margin-top: 30px; font-size: 13px; color: var(--desk-muted); text-align
   <footer>
     <div class="keys" data-i="keys"></div>
     <div data-i="credit"></div>
+    <div class="foot-actions"><button class="linkbtn quiet" id="hiliBtn"></button><button class="linkbtn quiet" id="resetBtn" data-i="reset"></button></div>
   </footer>
 </div>
 

@@ -22,12 +22,13 @@
     }
   }
   const CAT = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
+  const CAT_KEYS = new Set(CATEGORIES.map(c => c.key));
 
   // ---------- UI strings ----------
   const T = {
     en: {
       title: 'German flashcards', dirDe: 'DE → EN', dirTr: 'EN → DE', cards: 'Cards', quiz: 'Quiz',
-      topics: 'Topics', all: 'Select all', none: 'Clear', reset: 'Reset progress',
+      topics: 'Topics', all: 'All topics', none: 'Clear', reset: 'Reset progress',
       resetQ: 'Reset progress for this level?', again: 'Again', got: 'Got it', tap: 'Tap to flip',
       mastered: (a, b) => `${a} / ${b} mastered`, ofTopics: (a, b) => `${a} of ${b}`,
       doneT: 'All done here! 🎉', doneS: 'Every word in these topics is mastered.',
@@ -35,11 +36,11 @@
       correct: 'Correct', wrong: 'Wrong', streak: 'Streak',
       keys: 'Space = flip · → = got it · ← = again · S = speak · 1–4 in quiz',
       credit: 'Based on the Goethe-Zertifikat word lists.',
-      boxes: ['New', 'Seen once', 'Seen twice', 'Learned'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
+      boxes: ['New', 'Seen once', 'Seen twice', 'Learned'], hiliOn: 'Surprises: on', hiliOff: 'Surprises: off', cont: 'Continue', verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     },
     he: {
       title: 'כרטיסיות גרמנית', dirDe: 'מגרמנית', dirTr: 'לגרמנית', cards: 'כרטיסיות', quiz: 'חידון',
-      topics: 'נושאים', all: 'בחר הכול', none: 'נקה', reset: 'איפוס התקדמות',
+      topics: 'נושאים', all: 'כל הנושאים', none: 'נקה', reset: 'איפוס התקדמות',
       resetQ: 'לאפס את ההתקדמות ברמה הזאת?', again: 'שוב', got: 'ידעתי', tap: 'הקש כדי להפוך',
       mastered: (a, b) => `${a} / ${b} נלמדו`, ofTopics: (a, b) => `${a} מתוך ${b}`,
       doneT: 'סיימת! 🎉', doneS: 'כל המילים בנושאים האלה נלמדו.',
@@ -47,7 +48,7 @@
       correct: 'נכון', wrong: 'טעות', streak: 'רצף',
       keys: 'רווח = הפוך · חץ ימינה = ידעתי · חץ שמאלה = שוב · S = השמע · 1–4 בחידון',
       credit: 'מבוסס על רשימות המילים של Goethe-Zertifikat.',
-      boxes: ['חדש', 'פעם אחת', 'פעמיים', 'נלמד'], verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
+      boxes: ['חדש', 'פעם אחת', 'פעמיים', 'נלמד'], hiliOn: 'הפתעות: פועל', hiliOff: 'הפתעות: כבוי', cont: 'המשך', verb: 'Verb', adj: 'Adjektiv', wort: 'Wort'
     }
   };
 
@@ -61,9 +62,8 @@
     dir: store.get('dir', 'de'),
     mode: store.get('mode', 'cards'),
     level: store.get('level', 'A1'),
-    off: new Set(store.get('off', null) || (() => {               // topics switched off (migrates old 'cats' list)
-      const on = store.get('cats', null); return on ? CATEGORIES.filter(c => c.level === 'A1' && !on.includes(c.key)).map(c => c.key) : [];
-    })()),
+    focus: store.get('focus', {}),
+    hili: store.get('hili', true), untilHili: 6 + (Math.random() * 6 | 0),      // level -> topic key, or none = all topics
     box: store.get('box', {}),           // word id -> level (0..); >=3 = mastered
     reviewAll: false,
     deck: [], cur: null, flipped: false,
@@ -72,7 +72,7 @@
   const MASTER = 3;
   const t = k => T[S.lang][k];
   const tr = w => w[S.lang];
-  const save = () => { store.set('lang', S.lang); store.set('dir', S.dir); store.set('mode', S.mode); store.set('level', S.level); store.set('off', [...S.off]); store.set('box', S.box); };
+  const save = () => { store.set('lang', S.lang); store.set('dir', S.dir); store.set('mode', S.mode); store.set('level', S.level); store.set('focus', S.focus); store.set('hili', S.hili); store.set('box', S.box); };
 
   // ---------- speech ----------
   const canSpeak = 'speechSynthesis' in window;
@@ -99,8 +99,8 @@
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
   if (!LEVELS.includes(S.level)) S.level = 'A1';
   const levelCats = () => CATEGORIES.filter(c => c.level === S.level);
-  const onCats = () => levelCats().filter(c => !S.off.has(c.key));
-  const pool = () => WORDS.filter(w => w.level === S.level && !S.off.has(w.cat));
+  const focus = () => { const k = S.focus[S.level]; return k && CAT_KEYS.has(k) ? k : null; };
+  const pool = () => WORDS.filter(w => w.level === S.level && (!focus() || w.cat === focus()));
   const isMastered = w => (S.box[w.id] || 0) >= MASTER;
   const trSpan = text => `<span ${S.lang === 'he' ? 'dir="rtl" lang="he"' : ''}>${esc(text)}</span>`;
   function deHtml(w) {
@@ -132,14 +132,12 @@
     document.title = t('title');
     document.querySelectorAll('[data-i]').forEach(el => { el.textContent = t(el.dataset.i); });
     $('lvl').textContent = S.level;
+    $('hiliBtn').textContent = '♥ ' + t(S.hili ? 'hiliOn' : 'hiliOff');
     for (const [id, val] of [['levelSeg', S.level], ['langSeg', S.lang], ['dirSeg', S.dir], ['modeSeg', S.mode]])
       $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === val));
-    $('chips').innerHTML = levelCats().map(c => {
-      const ws = WORDS.filter(w => w.cat === c.key);
-      const m = ws.filter(isMastered).length;
-      return `<button class="chip ${S.off.has(c.key) ? '' : 'on'}" data-cat="${c.key}">${esc(c[S.lang])}<small>${m}/${ws.length}</small></button>`;
-    }).join('');
-    $('catSummary').textContent = t('ofTopics')(onCats().length, levelCats().length);
+    const lw = WORDS.filter(w => w.level === S.level), f = focus();
+    const chip = (key, name, ws) => `<button class="chip ${f === key ? 'on' : ''}" data-cat="${key || ''}" aria-pressed="${f === key}">${esc(name)}<small>${ws.filter(isMastered).length}/${ws.length}</small></button>`;
+    $('chips').innerHTML = chip(null, t('all'), lw) + levelCats().map(c => chip(c.key, c[S.lang], lw.filter(w => w.cat === c.key))).join('');
     const p = pool(), counts = [0, 0, 0, 0];
     for (const w of p) counts[Math.min(S.box[w.id] || 0, MASTER)]++;
     const kasten = $('kasten');
@@ -161,7 +159,11 @@
     d = shuffle(d.slice()).sort((a, b) => (S.box[a.id] || 0) - (S.box[b.id] || 0));
     S.deck = d;
   }
+  const HILI = { id: 'hili', hili: true };
   function nextWord() {
+    if (S.hili && S.cur && !S.cur.hili && --S.untilHili <= 0) {
+      S.untilHili = 8 + (Math.random() * 8 | 0); S.cur = HILI; S.flipped = false; return;
+    }
     if (!S.deck.length) buildDeck();
     S.cur = S.deck.shift() || null;
     S.flipped = false;
@@ -170,12 +172,12 @@
   // ---------- cards ----------
   function renderCards() {
     const st = $('stage');
-    if (!onCats().length) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
     if (!S.cur) {
       st.innerHTML = `<div class="quiz-q done"><h2>${t('doneT')}</h2><p>${t('doneS')}</p><button class="btn primary" id="reviewBtn">${t('review')}</button></div>`;
       $('reviewBtn').onclick = () => { S.reviewAll = true; buildDeck(); nextWord(); render(); };
       return;
     }
+    if (S.cur.hili) { renderHili(); return; }
     const w = S.cur;
     const deSide = `<div class="word" lang="de" dir="ltr">${deHtml(w)} ${speakBtn(w.de)}</div>`;
     const trSide = `<div class="word small">${trSpan(tr(w))}</div>`;
@@ -196,6 +198,21 @@
     $('gotBtn').onclick = () => grade(true);
     bindSwipe($('card'));
   }
+  function renderHili() {
+    $('stage').innerHTML = `
+      <div class="card-area"><div class="card hili-card" id="card">
+        <div class="face hili"><span class="tab hili-tab">♥</span>
+          <div class="hearts" aria-hidden="true">${'<i>♥</i>'.repeat(14)}</div>
+          <div class="word hili-word" lang="de" dir="ltr">Ich liebe dich, Hili ${speakBtn('Ich liebe dich, Hili')}</div>
+          <div class="sub" dir="ltr">I love you, Hili</div>
+          <div class="sub" dir="rtl" lang="he">אני אוהב אותך, הילי</div>
+        </div>
+      </div></div>
+      <div class="actions" style="grid-template-columns:1fr"><button class="btn primary" id="contBtn">${t('cont')}</button></div>`;
+    fitCard();
+    $('contBtn').onclick = () => { S.quiz.options = []; nextWord(); render(); };
+    $('card').onclick = e => { if (!e.target.closest('.speak')) $('contBtn').click(); };
+  }
   function fitCard() {
     const card = $('card'); if (!card) return;
     const h = Math.max(...[...card.querySelectorAll('.face')].map(f => { f.style.position = 'relative'; const v = f.scrollHeight; f.style.position = ''; return v; }));
@@ -204,6 +221,7 @@
     card.style.minHeight = Math.max(base, h) + 'px';
   }
   function flip() {
+    if (S.cur.hili) return;
     S.flipped = !S.flipped;
     $('card').classList.toggle('flipped', S.flipped);
     if (S.flipped && S.dir === 'tr') speak(S.cur.de);
@@ -211,6 +229,7 @@
   let busy = false;
   function grade(ok) {
     const w = S.cur; if (!w || busy) return;
+    if (w.hili) { S.quiz.options = []; nextWord(); render(); return; }
     if (ok) S.box[w.id] = (S.box[w.id] || 0) + 1;
     else { S.box[w.id] = 0; S.deck.splice(Math.min(4, S.deck.length), 0, w); }
     save();
@@ -243,8 +262,7 @@
   }
   function renderQuiz() {
     const st = $('stage');
-    if (!onCats().length) { st.innerHTML = `<div class="quiz-q done"><p>${t('pick')}</p></div>`; return; }
-    if (!S.cur) { renderCards(); return; }
+    if (!S.cur || S.cur.hili) { renderCards(); return; }
     if (!S.quiz.options.length) setupQuestion();
     const w = S.cur, q = S.quiz;
     const prompt = S.dir === 'de'
@@ -265,7 +283,7 @@
     if (q.answered) $('nextBtn').onclick = nextQuestion;
   }
   function answer(i) {
-    const q = S.quiz; if (q.answered) return;
+    const q = S.quiz; if (q.answered || !S.cur || S.cur.hili) return;
     const o = q.options[i]; if (!o) return;
     const w = S.cur, ok = o.id === w.id;
     q.answered = true; q.chosen = o.id;
@@ -277,18 +295,19 @@
 
   // ---------- main ----------
   function render() { S.mode === 'quiz' ? renderQuiz() : renderCards(); }
+  function showFocusedChip(smooth) { const c = document.querySelector('.chip.on'); if (c) c.scrollIntoView({ block: 'nearest', inline: 'center', behavior: smooth ? 'smooth' : 'auto' }); }
   function restart() { S.reviewAll = false; buildDeck(); nextWord(); S.quiz.options = []; renderChrome(); render(); }
 
-  $('levelSeg').onclick = e => { const v = e.target.dataset.v; if (v && v !== S.level) { S.level = v; save(); restart(); } };
+  $('levelSeg').onclick = e => { const v = e.target.dataset.v; if (v && v !== S.level) { S.level = v; save(); restart(); showFocusedChip(); } };
   $('langSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.lang = v; save(); S.quiz.options = []; renderChrome(); render(); } };
   $('dirSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.dir = v; save(); S.flipped = false; S.quiz.options = []; renderChrome(); render(); } };
   $('modeSeg').onclick = e => { const v = e.target.dataset.v; if (v) { S.mode = v; save(); S.flipped = false; S.quiz.options = []; renderChrome(); render(); } };
   $('chips').onclick = e => {
     const b = e.target.closest('.chip'); if (!b) return;
-    const k = b.dataset.cat; S.off.has(k) ? S.off.delete(k) : S.off.add(k); save(); restart();
+    const k = b.dataset.cat || null; if (k === focus()) return;
+    S.focus[S.level] = k; save(); restart(); showFocusedChip(true);
   };
-  $('allBtn').onclick = () => { levelCats().forEach(c => S.off.delete(c.key)); save(); restart(); };
-  $('noneBtn').onclick = () => { levelCats().forEach(c => S.off.add(c.key)); save(); restart(); };
+  $('hiliBtn').onclick = () => { S.hili = !S.hili; save(); renderChrome(); if (!S.hili && S.cur && S.cur.hili) { nextWord(); render(); } };
   $('resetBtn').onclick = () => { if (confirm(t('resetQ'))) { WORDS.filter(w => w.level === S.level).forEach(w => delete S.box[w.id]); save(); restart(); } };
   document.addEventListener('click', e => { const b = e.target.closest('.speak'); if (b) { e.stopPropagation(); speak(b.dataset.say); } }, true);
   window.addEventListener('resize', fitCard);
@@ -303,8 +322,9 @@
       if (/^[1-4]$/.test(e.key)) answer(+e.key - 1);
       else if ((e.key === 'Enter' || e.key === ' ') && S.quiz.answered) { e.preventDefault(); nextQuestion(); }
     }
-    if ((e.key === 's' || e.key === 'S') && S.cur) speak(S.cur.de);
+    if (S.cur && S.cur.hili && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); $('contBtn').click(); return; }
+    if ((e.key === 's' || e.key === 'S') && S.cur) speak(S.cur.hili ? 'Ich liebe dich, Hili' : S.cur.de);
   });
 
-  restart();
+  restart(); showFocusedChip();
 })();
